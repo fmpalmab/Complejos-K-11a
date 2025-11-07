@@ -1,0 +1,18 @@
+# Datos
+/data/
+ss2kc.parquet
+
+# Modelos guardados
+*.pth
+*.png
+
+# Archivos de Python
+__pycache__/
+*.pyc
+
+# Entornos virtuales
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/

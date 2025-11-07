@@ -4,7 +4,6 @@ ss2kc.parquet
 
 # Modelos guardados
 *.pth
-*.png
 
 # Archivos de Python
 __pycache__/

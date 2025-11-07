@@ -109,3 +109,70 @@ class SignalDatasetLocalizar(Dataset):
         label_out = self.pool(label_4000_pooled) # -> (1, 500)
 
         return signal, label_out
+
+
+# --- NUEVAS CLASES DE DATASET ---
+
+class SignalDatasetLocalizar_CWT(Dataset):
+    """
+    Dataset para LOCALIZACIÓN con 2 canales de entrada: Señal + CWT.
+    Asume que el dataframe tiene las columnas 'signal', 'cwt' y 'labels'.
+    """
+    def __init__(self, dataframe):
+        self.signals = torch.tensor(np.array(dataframe['signal'].tolist()), dtype=torch.float32)
+        self.cwt_features = torch.tensor(np.array(dataframe['cwt'].tolist()), dtype=torch.float32)
+        self.labels = torch.tensor(np.array(dataframe['labels'].tolist()), dtype=torch.float32)
+        self.pool = nn.MaxPool1d(kernel_size=8, stride=8)
+        
+        # Asegurarse que CWT tenga la misma longitud que la señal
+        assert self.signals.shape == self.cwt_features.shape, "Señal y CWT deben tener la misma dimensión"
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        # Obtener señal y cwt, añadir dimensión de canal
+        signal_1ch = self.signals[idx].unsqueeze(0)      # (1, 4000)
+        cwt_1ch = self.cwt_features[idx].unsqueeze(0)    # (1, 4000)
+        
+        # Apilar en la dimensión de canal
+        stacked_input = torch.cat((signal_1ch, cwt_1ch), dim=0) # (2, 4000)
+
+        # Procesar etiqueta (igual que antes)
+        label_4000 = self.labels[idx]
+        label_4000_pooled = label_4000.unsqueeze(0)
+        label_out = self.pool(label_4000_pooled) # (1, 500)
+
+        return stacked_input, label_out
+
+class SignalDatasetLocalizar_ZETA(Dataset):
+    """
+    Dataset para LOCALIZACIÓN con 2 canales de entrada: Señal + Z-Score.
+    Asume que el dataframe tiene las columnas 'signal', 'zeta' y 'labels'.
+    """
+    def __init__(self, dataframe):
+        self.signals = torch.tensor(np.array(dataframe['signal'].tolist()), dtype=torch.float32)
+        self.zeta_features = torch.tensor(np.array(dataframe['zeta'].tolist()), dtype=torch.float32)
+        self.labels = torch.tensor(np.array(dataframe['labels'].tolist()), dtype=torch.float32)
+        self.pool = nn.MaxPool1d(kernel_size=8, stride=8)
+
+        # Asegurarse que Z-Score tenga la misma longitud que la señal
+        assert self.signals.shape == self.zeta_features.shape, "Señal y Z-Score deben tener la misma dimensión"
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        # Obtener señal y zeta, añadir dimensión de canal
+        signal_1ch = self.signals[idx].unsqueeze(0)      # (1, 4000)
+        zeta_1ch = self.zeta_features[idx].unsqueeze(0)  # (1, 4000)
+        
+        # Apilar en la dimensión de canal
+        stacked_input = torch.cat((signal_1ch, zeta_1ch), dim=0) # (2, 4000)
+
+        # Procesar etiqueta (igual que antes)
+        label_4000 = self.labels[idx]
+        label_4000_pooled = label_4000.unsqueeze(0)
+        label_out = self.pool(label_4000_pooled) # (1, 500)
+
+        return stacked_input, label_out

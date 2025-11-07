@@ -51,7 +51,7 @@ def plot_training_history(history, title_suffix='', save_path=None):
     if save_path:
         plt.savefig(save_path)
         print(f"Gráfico de historial guardado en: {save_path}")
-    plt.show()
+    #plt.show()
 
 
 def plot_avg_training_history(all_histories, title_suffix='', best_epoch=None, save_path=None):
@@ -132,7 +132,7 @@ def plot_avg_training_history(all_histories, title_suffix='', best_epoch=None, s
     if save_path:
         plt.savefig(save_path)
         print(f"Gráfico de historial promedio guardado en: {save_path}")
-    plt.show()
+    #plt.show()
 
 
 def get_test_metrics(model, dataloader, device, task_type='detectar'):
@@ -184,7 +184,7 @@ def plot_simple_confusion_matrix(model, dataloader, device, task_type='detectar'
     if save_path:
         plt.savefig(save_path)
         print(f"Gráfico de matriz de confusión guardado en: {save_path}")
-    plt.show()
+    #plt.show()
 
 
 def plot_confusion_matrix_with_std(model, dataloader, device, n_bootstraps=1000, save_path=None):
@@ -254,13 +254,17 @@ def plot_confusion_matrix_with_std(model, dataloader, device, n_bootstraps=1000,
     if save_path:
         plt.savefig(save_path)
         print(f"Gráfico de matriz de confusión (Std) guardado en: {save_path}")
-    plt.show()
+    #plt.show()
 
 
 def visualizar_localizacion(model, dataloader, original_df, device, num_samples=3, save_prefix=None):
     """
     Grafica y guarda la señal original, la verdad (ground truth) y las predicciones
     del modelo de localización.
+    
+    --- MODIFICADO ---
+    Maneja tensores de entrada de 1 o 2 canales (B, C, T).
+    Siempre grafica el canal 0 (índice 0) que se asume es la señal original.
     """
     model.eval()
     
@@ -271,14 +275,25 @@ def visualizar_localizacion(model, dataloader, original_df, device, num_samples=
         logits_500 = model(signals_batch)
         logits_4000 = F.interpolate(logits_500, scale_factor=8, mode='nearest')
         preds_4000_batch = (torch.sigmoid(logits_4000) > 0.5).float().cpu().numpy()
+        
+        # --- MODIFICACIÓN ---
+        # Seleccionar solo el canal 0 (señal original) para visualización
+        # signals_batch puede ser (B, 1, 4000) o (B, 2, 4000)
         signals_4000_batch = signals_batch.cpu().numpy()
+        # --------------------
+        
         batch_size_real = signals_batch.size(0)
         original_labels_4000_batch = np.array(original_df['labels'].tolist()[:batch_size_real])
 
     print(f"\n--- Mostrando y guardando {num_samples} ejemplos de localización (Azul=0, Rojo=1) ---")
 
     for i in range(min(num_samples, len(signals_batch))):
-        signal_to_plot = signals_4000_batch[i].squeeze()
+        
+        # --- MODIFICACIÓN ---
+        # Seleccionar el canal 0 (índice 0) de la señal
+        signal_to_plot = signals_4000_batch[i, 0].squeeze() 
+        # --------------------
+        
         true_labels_to_plot = original_labels_4000_batch[i].squeeze()
         pred_labels_to_plot = preds_4000_batch[i].squeeze()
 
@@ -306,7 +321,7 @@ def visualizar_localizacion(model, dataloader, original_df, device, num_samples=
             save_path = f"{save_prefix}_sample_{i}.png"
             plt.savefig(save_path)
             print(f"Visualización de muestra guardada en: {save_path}")
-        plt.show()
+        #plt.show()
 
 # --- FUNCIÓN NUEVA ---
 def generate_metrics_report(model, dataloader, device, save_path):

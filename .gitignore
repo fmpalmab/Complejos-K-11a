@@ -1,6 +1,6 @@
-# Datos
-/data/
-ss2kc.parquet
+# Ignorar archivos de datos Parquet
+data/
+*.parquet
 
 # Modelos guardados
 *.pth

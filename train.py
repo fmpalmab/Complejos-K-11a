@@ -15,10 +15,10 @@ import os # Importar os para crear carpetas
 try:
     from config import *
     from models import CNNDETECTAR, CNNDETECTAR_MLP, CRNN_DETECTAR_LOCALIZAR
-    # --- AÑADIDO: Importar nuevos modelos ---
+    # --- Importar nuevos modelos ---
     from cwtmodel import CWT_CRNN_LOCALIZAR
     from zeta import ZETA_CRNN_LOCALIZAR
-    # --- AÑADIDO: Importar nuevos datasets ---
+    # --- Importar nuevos datasets ---
     from datasets import (
         SignalDatasetDetectar, SignalDatasetLocalizar,
         SignalDatasetLocalizar_CWT, SignalDatasetLocalizar_ZETA
@@ -26,13 +26,21 @@ try:
     from utils import (
         plot_avg_training_history, plot_confusion_matrix_with_std, 
         visualizar_localizacion, get_test_metrics, plot_training_history,
-        generate_metrics_report # <-- IMPORTAR NUEVA FUNCIÓN
+        generate_metrics_report 
     )
 except ImportError:
     print("Error: No se pudieron importar los módulos locales (config, models, datasets, utils).")
     print("Asegúrate de ejecutar este script desde el directorio raíz del proyecto")
     print("Y de que los archivos 'cwtmodel.py' y 'zeta.py' existen.")
     sys.exit(1)
+
+
+# --- OPTIMIZACIÓN: AÑADIR PARÁMETROS DE DATALOADER ---
+# Usar num_workers > 0 para cargar datos en paralelo
+# Usar pin_memory=True solo si la GPU está disponible
+NUM_WORKERS = 4 
+PIN_MEMORY = (DEVICE.type == 'cuda')
+#print(f"Configuración de DataLoader: num_workers={NUM_WORKERS}, pin_memory={PIN_MEMORY}")
 
 
 # --- 1. FUNCIONES DE ENTRENAMIENTO Y EVALUACIÓN ---
@@ -115,7 +123,7 @@ def evaluate_localizar(model, dataloader, criterion, device):
     return epoch_loss, epoch_acc
 
 
-# --- 2. FUNCIÓN DE CARGA DE DATOS (MODIFICADA) ---
+# --- 2. FUNCIÓN DE CARGA DE DATOS ---
 
 def load_data(ruta):
     print(f"Cargando datos desde {ruta}...")
@@ -126,7 +134,6 @@ def load_data(ruta):
         return None
     print(f"Datos cargados. Forma: {df.shape}")
     
-    # --- MODIFICACIÓN: Añadir chequeos de columnas ---
     if 'labels' not in df.columns or 'signal' not in df.columns:
         print("Error: El dataframe debe contener 'signal' y 'labels'.")
         return None
@@ -134,7 +141,6 @@ def load_data(ruta):
     df['existeK'] = df['labels'].apply(lambda x: 1 if 1 in x else 0)
     print("Columna 'existeK' creada.")
     
-    # Advertir si faltan columnas para los nuevos experimentos
     if 'cwt' not in df.columns:
         print("Advertencia: Columna 'cwt' no encontrada. El Experimento 4 (CWT) fallará.")
     else:
@@ -148,7 +154,7 @@ def load_data(ruta):
     return df
 
 
-# --- 3. FUNCIONES DE EXPERIMENTOS (EXPERIMENTOS 1, 2, 3 SIN CAMBIOS) ---
+# --- 3. FUNCIONES DE EXPERIMENTOS (ACTUALIZADAS CON DATALOADERS) ---
 
 def run_experiment_1_detection_cnn(df, output_dir):
     """Corre el experimento 1 y guarda los resultados en output_dir."""
@@ -165,15 +171,17 @@ def run_experiment_1_detection_cnn(df, output_dir):
     train_dataset = SignalDatasetDetectar(train_df)
     val_dataset = SignalDatasetDetectar(val_df)
     test_dataset = SignalDatasetDetectar(test_df)
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    
+    # --- MODIFICADO: DataLoader optimizado ---
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
     # --- Entrenamiento Múltiple ---
     all_histories = []
     best_global_model_path = os.path.join(output_dir, 'best_model_cnn_detect.pth')
     global_best_val_loss = float('inf')
-    global_best_epoch = 0 # <-- AÑADIDO
+    global_best_epoch = 0 
 
     for i in range(NUM_RUNS):
         print(f"\n--- Iniciando Corrida de Entrenamiento {i+1}/{NUM_RUNS} ---")
@@ -198,7 +206,7 @@ def run_experiment_1_detection_cnn(df, output_dir):
                 patience_counter = 0
                 if val_loss < global_best_val_loss:
                     global_best_val_loss = val_loss
-                    global_best_epoch = epoch + 1 # <-- AÑADIDO
+                    global_best_epoch = epoch + 1 
                     torch.save(model.state_dict(), best_global_model_path)
                     print(f"  -> Nuevo mejor modelo global guardado (Época {global_best_epoch})")
             else:
@@ -214,28 +222,25 @@ def run_experiment_1_detection_cnn(df, output_dir):
     best_model = CNNDETECTAR(Nf=Nf_CNN, N1=N1_CNN).to(DEVICE)
     best_model.load_state_dict(torch.load(best_global_model_path))
     
-    # 1. Guardar gráfico de entrenamiento
     plot_avg_training_history(
         all_histories, 
         title_suffix='(CNN Detección)', 
-        best_epoch=global_best_epoch, # <-- AÑADIDO
-        save_path=os.path.join(output_dir, 'training_curves_exp1_cnn.png') # <-- AÑADIDO
+        best_epoch=global_best_epoch, 
+        save_path=os.path.join(output_dir, 'training_curves_exp1_cnn.png') 
     )
     
-    # 2. Guardar matriz de confusión
     plot_confusion_matrix_with_std(
         best_model, 
         test_loader, 
         DEVICE, 
-        save_path=os.path.join(output_dir, 'confusion_matrix_exp1_cnn.png') # <-- AÑADIDO
+        save_path=os.path.join(output_dir, 'confusion_matrix_exp1_cnn.png') 
     )
     
-    # 3. Guardar tabla de métricas
     generate_metrics_report(
         best_model,
         test_loader,
         DEVICE,
-        save_path=os.path.join(output_dir, 'metrics_report_exp1_cnn.csv') # <-- AÑADIDO
+        save_path=os.path.join(output_dir, 'metrics_report_exp1_cnn.csv') 
     )
     print("--- FIN EXPERIMENTO 1 ---")
 
@@ -255,15 +260,17 @@ def run_experiment_2_detection_mlp(df, output_dir):
     train_dataset = SignalDatasetDetectar(train_df)
     val_dataset = SignalDatasetDetectar(val_df)
     test_dataset = SignalDatasetDetectar(test_df)
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    
+    # --- MODIFICADO: DataLoader optimizado ---
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
     
     # --- Entrenamiento Múltiple ---
     all_histories = []
     best_global_model_path = os.path.join(output_dir, 'best_model_mlp_detect.pth')
     global_best_val_loss = float('inf')
-    global_best_epoch = 0 # <-- AÑADIDO
+    global_best_epoch = 0 
     
     for i in range(NUM_RUNS):
         print(f"\n--- Iniciando Corrida de Entrenamiento {i+1}/{NUM_RUNS} ---")
@@ -288,7 +295,7 @@ def run_experiment_2_detection_mlp(df, output_dir):
                 patience_counter = 0
                 if val_loss < global_best_val_loss:
                     global_best_val_loss = val_loss
-                    global_best_epoch = epoch + 1 # <-- AÑADIDO
+                    global_best_epoch = epoch + 1 
                     torch.save(model.state_dict(), best_global_model_path)
                     print(f"  -> Nuevo mejor modelo global guardado (Época {global_best_epoch})")
             else:
@@ -304,28 +311,25 @@ def run_experiment_2_detection_mlp(df, output_dir):
     best_model = CNNDETECTAR_MLP(Nf=Nf_CNN, N1=N1_CNN).to(DEVICE)
     best_model.load_state_dict(torch.load(best_global_model_path))
     
-    # 1. Guardar gráfico de entrenamiento
     plot_avg_training_history(
         all_histories, 
         title_suffix='(MLP Detección)', 
-        best_epoch=global_best_epoch, # <-- AÑADIDO
-        save_path=os.path.join(output_dir, 'training_curves_exp2_mlp.png') # <-- AÑADIDO
+        best_epoch=global_best_epoch, 
+        save_path=os.path.join(output_dir, 'training_curves_exp2_mlp.png') 
     )
     
-    # 2. Guardar matriz de confusión
     plot_confusion_matrix_with_std(
         best_model, 
         test_loader, 
         DEVICE, 
-        save_path=os.path.join(output_dir, 'confusion_matrix_exp2_mlp.png') # <-- AÑADIDO
+        save_path=os.path.join(output_dir, 'confusion_matrix_exp2_mlp.png') 
     )
     
-    # 3. Guardar tabla de métricas
     generate_metrics_report(
         best_model,
         test_loader,
         DEVICE,
-        save_path=os.path.join(output_dir, 'metrics_report_exp2_mlp.csv') # <-- AÑADIDO
+        save_path=os.path.join(output_dir, 'metrics_report_exp2_mlp.csv') 
     )
     print("--- FIN EXPERIMENTO 2 ---")
 
@@ -335,7 +339,6 @@ def run_experiment_3_localization(df, output_dir):
     print("\n--- INICIANDO EXPERIMENTO 3: LOCALIZACIÓN (CRNN) ---")
     
     # --- Preparación de Datos ---
-    # Usar solo las columnas necesarias
     df_localizar = df[['signal', 'labels', 'existeK']]
     train_df, temp_df = train_test_split(
         df_localizar, test_size=0.2, random_state=42, stratify=df_localizar['existeK']
@@ -346,9 +349,11 @@ def run_experiment_3_localization(df, output_dir):
     train_dataset = SignalDatasetLocalizar(train_df)
     val_dataset = SignalDatasetLocalizar(val_df)
     test_dataset = SignalDatasetLocalizar(test_df)
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    
+    # --- MODIFICADO: DataLoader optimizado ---
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
     # --- Cálculo de pos_weight ---
     print("Calculando peso para clases desbalanceadas (pos_weight)...")
@@ -363,7 +368,7 @@ def run_experiment_3_localization(df, output_dir):
     all_histories = []
     best_global_model_path = os.path.join(output_dir, 'best_model_localization.pth')
     global_best_val_loss = float('inf')
-    global_best_epoch = 0 # <-- AÑADIDO
+    global_best_epoch = 0 
     
     for i in range(NUM_RUNS):
         print(f"\n--- Iniciando Corrida de Entrenamiento {i+1}/{NUM_RUNS} ---")
@@ -388,7 +393,7 @@ def run_experiment_3_localization(df, output_dir):
                 patience_counter = 0
                 if val_loss < global_best_val_loss:
                     global_best_val_loss = val_loss
-                    global_best_epoch = epoch + 1 # <-- AÑADIDO
+                    global_best_epoch = epoch + 1 
                     torch.save(model.state_dict(), best_global_model_path)
                     print(f"  -> Nuevo mejor modelo global guardado (Época {global_best_epoch})")
             else:
@@ -404,38 +409,34 @@ def run_experiment_3_localization(df, output_dir):
     best_model = CRNN_DETECTAR_LOCALIZAR(num_classes=1, Nf=Nf_LOC, N1=N1_LOC).to(DEVICE)
     best_model.load_state_dict(torch.load(best_global_model_path))
     
-    # 1. Guardar gráfico de entrenamiento
     plot_avg_training_history(
         all_histories, 
         title_suffix='(CRNN Localización)', 
-        best_epoch=global_best_epoch, # <-- AÑADIDO
-        save_path=os.path.join(output_dir, 'training_curves_exp3_loc.png') # <-- AÑADIDO
+        best_epoch=global_best_epoch, 
+        save_path=os.path.join(output_dir, 'training_curves_exp3_loc.png') 
     )
     
-    # 2. Guardar matriz de confusión
     plot_confusion_matrix_with_std(
         best_model, 
         test_loader, 
         DEVICE, 
-        save_path=os.path.join(output_dir, 'confusion_matrix_exp3_loc.png') # <-- AÑADIDO
+        save_path=os.path.join(output_dir, 'confusion_matrix_exp3_loc.png') 
     )
     
-    # 3. Guardar tabla de métricas
     generate_metrics_report(
         best_model,
         test_loader,
         DEVICE,
-        save_path=os.path.join(output_dir, 'metrics_report_exp3_loc.csv') # <-- AÑADIDO
+        save_path=os.path.join(output_dir, 'metrics_report_exp3_loc.csv') 
     )
     
-    # 4. Guardar visualizaciones de localización
     visualizar_localizacion(
         best_model, 
         test_loader, 
         test_df, 
         DEVICE, 
         num_samples=3, 
-        save_prefix=os.path.join(output_dir, 'localization_visualization_exp3') # <-- AÑADIDO
+        save_prefix=os.path.join(output_dir, 'localization_visualization_exp3') 
     )
     
     print("--- FIN EXPERIMENTO 3 ---")
@@ -447,7 +448,6 @@ def run_experiment_4_localization_cwt(df, output_dir):
     """Corre el experimento 4 (CWT) y guarda los resultados."""
     print("\n--- INICIANDO EXPERIMENTO 4: LOCALIZACIÓN (CRNN + CWT) ---")
     
-    # --- Preparación de Datos ---
     if 'cwt' not in df.columns:
         print("Error: Columna 'cwt' no encontrada en el dataframe. Abortando Exp 4.")
         return
@@ -464,9 +464,10 @@ def run_experiment_4_localization_cwt(df, output_dir):
     val_dataset = SignalDatasetLocalizar_CWT(val_df)
     test_dataset = SignalDatasetLocalizar_CWT(test_df)
     
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    # --- MODIFICADO: DataLoader optimizado ---
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
     # --- Cálculo de pos_weight ---
     print("Calculando peso para clases desbalanceadas (pos_weight)...")
@@ -485,7 +486,6 @@ def run_experiment_4_localization_cwt(df, output_dir):
     
     for i in range(NUM_RUNS):
         print(f"\n--- Iniciando Corrida de Entrenamiento {i+1}/{NUM_RUNS} ---")
-        # Usar el modelo CWT con in_channels=2 (por defecto)
         model = CWT_CRNN_LOCALIZAR(num_classes=1, Nf=Nf_LOC, N1=N1_LOC).to(DEVICE)
         criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
         optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -560,7 +560,6 @@ def run_experiment_5_localization_zeta(df, output_dir):
     """Corre el experimento 5 (ZETA) y guarda los resultados."""
     print("\n--- INICIANDO EXPERIMENTO 5: LOCALIZACIÓN (CRNN + ZETA) ---")
     
-    # --- Preparación de Datos ---
     if 'zeta' not in df.columns:
         print("Error: Columna 'zeta' no encontrada en el dataframe. Abortando Exp 5.")
         return
@@ -577,9 +576,10 @@ def run_experiment_5_localization_zeta(df, output_dir):
     val_dataset = SignalDatasetLocalizar_ZETA(val_df)
     test_dataset = SignalDatasetLocalizar_ZETA(test_df)
     
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    # --- MODIFICADO: DataLoader optimizado ---
+    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
+    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS, pin_memory=PIN_MEMORY)
 
     # --- Cálculo de pos_weight ---
     print("Calculando peso para clases desbalanceadas (pos_weight)...")
@@ -598,7 +598,6 @@ def run_experiment_5_localization_zeta(df, output_dir):
     
     for i in range(NUM_RUNS):
         print(f"\n--- Iniciando Corrida de Entrenamiento {i+1}/{NUM_RUNS} ---")
-        # Usar el modelo ZETA con in_channels=2 (por defecto)
         model = ZETA_CRNN_LOCALIZAR(num_classes=1, Nf=Nf_LOC, N1=N1_LOC).to(DEVICE)
         criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight_tensor)
         optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -670,7 +669,7 @@ def run_experiment_5_localization_zeta(df, output_dir):
 
 
 
-# --- 5. BLOQUE DE EJECUCIÓN PRINCIPAL (ACTUALIZADO) ---
+# --- 5. BLOQUE DE EJECUCIÓN PRINCIPAL ---
 
 def main():
     parser = argparse.ArgumentParser(
@@ -680,11 +679,9 @@ def main():
         '--experimento',
         type=int,
         default=0,
-        # --- AÑADIDO: Nuevas opciones 4 y 5 ---
         choices=[0, 1, 2, 3, 4, 5],
         help="Número del experimento a ejecutar (1: CNN, 2: MLP, 3: Loc, 4: Loc-CWT, 5: Loc-ZETA, 0: Todos). Default: 0"
     )
-    # AÑADIDO: Argumento para el directorio de salida
     parser.add_argument(
         '--output_dir',
         type=str,
@@ -693,7 +690,6 @@ def main():
     )
     args = parser.parse_args()
 
-    # --- AÑADIDO: Crear directorio de salida si no existe ---
     output_dir = args.output_dir
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -706,15 +702,19 @@ def main():
 
     # Ejecutar el experimento seleccionado
     if args.experimento == 1:
+        print(f"Usando dispositivo: {DEVICE}")
         run_experiment_1_detection_cnn(df, output_dir)
     elif args.experimento == 2:
+        print(f"Usando dispositivo: {DEVICE}")
         run_experiment_2_detection_mlp(df, output_dir)
     elif args.experimento == 3:
+        print(f"Usando dispositivo: {DEVICE}")
         run_experiment_3_localization(df, output_dir)
-    # --- AÑADIDO: Nuevas ramas elif ---
     elif args.experimento == 4:
+        print(f"Usando dispositivo: {DEVICE}")
         run_experiment_4_localization_cwt(df, output_dir)
     elif args.experimento == 5:
+        print(f"Usando dispositivo: {DEVICE}")
         run_experiment_5_localization_zeta(df, output_dir)
     elif args.experimento == 0:
         print("Ejecutando TODOS los experimentos...")
@@ -722,7 +722,6 @@ def main():
         run_experiment_1_detection_cnn(df, output_dir)
         run_experiment_2_detection_mlp(df, output_dir)
         run_experiment_3_localization(df, output_dir)
-        # --- AÑADIDO: Nuevas corridas ---
         run_experiment_4_localization_cwt(df, output_dir)
         run_experiment_5_localization_zeta(df, output_dir)
         print(f"\n--- TODOS LOS EXPERIMENTOS HAN FINALIZADO ---")

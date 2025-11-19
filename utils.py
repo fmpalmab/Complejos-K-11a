@@ -368,6 +368,7 @@ def generate_metrics_report(model, dataloader, device, save_path):
         print(df_report)
         print("-------------------------------------------\n")
     except Exception as e:
+<<<<<<< HEAD
         print(f"Error al guardar el reporte CSV: {e}")
 
 
@@ -734,3 +735,6 @@ def plot_event_confusion_matrix_with_std(tp_mean, tp_std, fp_mean, fp_std, fn_me
         print(f"Matriz de confusión (Media ± DE) guardada en: {save_path}")
     except Exception as e:
         print(f"Error al guardar la matriz de confusión: {e}")
+=======
+        print(f"Error al guardar el reporte CSV: {e}")
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d

@@ -224,6 +224,7 @@ class CRNN_DETECTAR_LOCALIZAR(nn.Module):
         # Clasificador
         logits = self.classifier(x) # -> (B, num_classes, 500)
 
+<<<<<<< HEAD
         return logits
     
 
@@ -384,3 +385,6 @@ class SEED_LOCALIZAR(nn.Module):
 
         return logits
     
+=======
+        return logits
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d

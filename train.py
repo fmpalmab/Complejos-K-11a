@@ -11,11 +11,18 @@ import argparse
 import sys
 import os # Importar os para crear carpetas
 
+<<<<<<< HEAD
 
 # Importar desde nuestros propios módulos .py
 try:
     from config import *
     from models import CNNDETECTAR, CNNDETECTAR_MLP, CRNN_DETECTAR_LOCALIZAR,SEED_LOCALIZAR
+=======
+# Importar desde nuestros propios módulos .py
+try:
+    from config import *
+    from models import CNNDETECTAR, CNNDETECTAR_MLP, CRNN_DETECTAR_LOCALIZAR
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
     # --- Importar nuevos modelos ---
     from cwtmodel import CWT_CRNN_LOCALIZAR
     from zeta import ZETA_CRNN_LOCALIZAR
@@ -27,7 +34,11 @@ try:
     from utils import (
         plot_avg_training_history, plot_confusion_matrix_with_std, 
         visualizar_localizacion, get_test_metrics, plot_training_history,
+<<<<<<< HEAD
         generate_metrics_report , get_event_based_metrics
+=======
+        generate_metrics_report 
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
     )
 except ImportError:
     print("Error: No se pudieron importar los módulos locales (config, models, datasets, utils).")
@@ -361,9 +372,14 @@ def run_experiment_3_localization(df, output_dir):
     all_labels_500 = torch.cat([label for _, label in train_loader], dim=0)
     neg_count = (all_labels_500 == 0).sum().item()
     pos_count = (all_labels_500 == 1).sum().item()
+<<<<<<< HEAD
     pos_weight = 20.0 # (Prueba con 10, o 15. Un valor más balanceado)
 
     print(f"Peso positivo (pos_weight) FIJADO EN: {pos_weight:.2f}")
+=======
+    pos_weight = (neg_count / pos_count) if pos_count > 0 else 1.0
+    print(f"Peso positivo (pos_weight) calculado: {pos_weight:.2f}")
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
     pos_weight_tensor = torch.tensor([pos_weight], device=DEVICE)
 
     # --- Entrenamiento Múltiple ---
@@ -407,8 +423,11 @@ def run_experiment_3_localization(df, output_dir):
 
     print("\n--- Entrenamiento Múltiple Finalizado ---")
     
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
     # --- Evaluación y Guardado de Gráficos ---
     best_model = CRNN_DETECTAR_LOCALIZAR(num_classes=1, Nf=Nf_LOC, N1=N1_LOC).to(DEVICE)
     best_model.load_state_dict(torch.load(best_global_model_path))
@@ -446,10 +465,13 @@ def run_experiment_3_localization(df, output_dir):
     print("--- FIN EXPERIMENTO 3 ---")
 
 
+<<<<<<< HEAD
 
 
 
 
+=======
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
 # --- 4. NUEVAS FUNCIONES DE EXPERIMENTOS ---
 
 def run_experiment_4_localization_cwt(df, output_dir):
@@ -675,6 +697,7 @@ def run_experiment_5_localization_zeta(df, output_dir):
     
     print("--- FIN EXPERIMENTO 5 ---")
 
+<<<<<<< HEAD
 # --- 6.Experimento SEED ---
 def run_experiment_6_localization_seed(df, output_dir):
     """
@@ -782,6 +805,8 @@ def run_experiment_6_localization_seed(df, output_dir):
     print(f"Los {NUM_RUNS} modelos por corrida han sido guardados (para 'evaluate.py' con Media±DE).")
     print(f"El MEJOR MODELO GLOBAL ha sido guardado en: {global_best_model_path}")
     print(f"Para ver la evaluación promediada, ejecuta: python evaluate.py")
+=======
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
 
 
 # --- 5. BLOQUE DE EJECUCIÓN PRINCIPAL ---
@@ -794,8 +819,13 @@ def main():
         '--experimento',
         type=int,
         default=0,
+<<<<<<< HEAD
         choices=[0, 1, 2, 3, 4, 5,6],
         help="Número del experimento a ejecutar (1: CNN, 2: MLP, 3: Loc, 4: Loc-CWT, 5: Loc-ZETA, 6: Loc-SEED, 0: Todos). Default: 0"
+=======
+        choices=[0, 1, 2, 3, 4, 5],
+        help="Número del experimento a ejecutar (1: CNN, 2: MLP, 3: Loc, 4: Loc-CWT, 5: Loc-ZETA, 0: Todos). Default: 0"
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
     )
     parser.add_argument(
         '--output_dir',
@@ -831,9 +861,12 @@ def main():
     elif args.experimento == 5:
         print(f"Usando dispositivo: {DEVICE}")
         run_experiment_5_localization_zeta(df, output_dir)
+<<<<<<< HEAD
     elif args.experimento == 6:
         print(f"Usando dispositivo: {DEVICE}")
         run_experiment_6_localization_seed(df, output_dir)
+=======
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
     elif args.experimento == 0:
         print("Ejecutando TODOS los experimentos...")
         print(f"Usando dispositivo: {DEVICE}")
@@ -842,7 +875,10 @@ def main():
         run_experiment_3_localization(df, output_dir)
         run_experiment_4_localization_cwt(df, output_dir)
         run_experiment_5_localization_zeta(df, output_dir)
+<<<<<<< HEAD
         run_experiment_6_localization_seed(df, output_dir)
+=======
+>>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
         print(f"\n--- TODOS LOS EXPERIMENTOS HAN FINALIZADO ---")
         print(f"Resultados guardados en la carpeta: {output_dir}")
 

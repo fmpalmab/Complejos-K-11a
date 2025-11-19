@@ -1,0 +1,17 @@
+# Ignorar archivos de datos Parquet
+data/
+*.parquet
+
+# Modelos guardados
+*.pth
+
+# Archivos de Python
+__pycache__/
+*.pyc
+
+# Entornos virtuales
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/

@@ -176,3 +176,40 @@ class SignalDatasetLocalizar_ZETA(Dataset):
         label_out = self.pool(label_4000_pooled) # (1, 500)
 
         return stacked_input, label_out
+    
+class SignalDatasetLocalizar_ALL(Dataset):
+    """
+    Dataset para el ENSEMBLE.
+    Entrega 3 canales apilados:
+    - Canal 0: Señal
+    - Canal 1: CWT
+    - Canal 2: ZETA
+    """
+    def __init__(self, dataframe):
+        self.signals = torch.tensor(np.array(dataframe['signal'].tolist()), dtype=torch.float32)
+        self.cwt_features = torch.tensor(np.array(dataframe['cwt'].tolist()), dtype=torch.float32)
+        self.zeta_features = torch.tensor(np.array(dataframe['zeta'].tolist()), dtype=torch.float32)
+        self.labels = torch.tensor(np.array(dataframe['labels'].tolist()), dtype=torch.float32)
+        self.pool = nn.MaxPool1d(kernel_size=8, stride=8)
+
+        # Validaciones de dimensiones
+        assert self.signals.shape == self.cwt_features.shape == self.zeta_features.shape, \
+            "Todas las características deben tener la misma dimensión"
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, idx):
+        # 1. Obtener características individuales (1, 4000)
+        s = self.signals[idx].unsqueeze(0)
+        c = self.cwt_features[idx].unsqueeze(0)
+        z = self.zeta_features[idx].unsqueeze(0)
+        
+        # 2. Apilar en dimensión de canal (3, 4000)
+        stacked_input = torch.cat((s, c, z), dim=0) 
+
+        # 3. Procesar etiqueta
+        label_4000 = self.labels[idx].unsqueeze(0)
+        label_out = self.pool(label_4000)
+
+        return stacked_input, label_out

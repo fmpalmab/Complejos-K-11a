@@ -114,17 +114,17 @@ class ENSEMBLE_LOCALIZAR(nn.Module):
         logits5 = self.model_exp5(input_exp5)
 
         # --- 3. Obtener Predicciones Binarias ---
-        # Aplicamos Sigmoid para obtener probabilidad y luego umbral 0.5
-        pred3 = (torch.sigmoid(logits3) > 0.5).float()
-        pred4 = (torch.sigmoid(logits4) > 0.5).float()
-        pred5 = (torch.sigmoid(logits5) > 0.5).float()
+        # Aplicamos Sigmoid para obtener probabilidad y luego umbral 0.9
+        pred3 = (torch.sigmoid(logits3) > 0.7).float()
+        pred4 = (torch.sigmoid(logits4) > 0.65).float()
+        pred5 = (torch.sigmoid(logits5) > 0.6).float()
 
         # --- 4. Votación de Mayoría (Hard Voting) ---
         # Sumamos las predicciones (0 o 1)
         vote_sum = pred3 + pred4 + pred5 # Valores posibles: 0, 1, 2, 3
 
         # Si la suma es >= 2, la mayoría votó positivo
-        majority_vote = (vote_sum >= 3).float()
+        majority_vote = (vote_sum >= 2).float()
 
         # --- 5. Formateo de Salida ---
         # 'evaluate.py' espera logits porque suele aplicar sigmoid internamente 

@@ -1,12 +1,9 @@
-pandas
-numpy
-torch
-scikit-learn
-matplotlib
-seaborn
-<<<<<<< HEAD
-pyarrow
-seaborn
-=======
-pyarrow
->>>>>>> 74dba8e9fc90736992cffea0d9125458a217168d
+torch>=2.0.0
+numpy>=1.22.0
+pandas>=2.0.0
+scipy>=1.9.0
+scikit-learn>=1.2.0
+matplotlib>=3.5.0
+seaborn>=0.12.0
+pyarrow>=10.0.0
+tqdm>=4.65.0

@@ -1,19 +1,36 @@
-import torch
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 """
-RUTA_DATOS = 'ss2kc.parquet' -> ORIGINAL # O '/content/drive/MyDrive/proyectoint/ss2kc.parquet' 
-ss2kc_features.parquet -> ES EL PROCESADO.
+Compatibility shim for config.py.
+Forwards to complejos_k.config.
 """
-RUTA_DATOS = 'ss2kc_features.parquet' 
-BATCH_SIZE = 128
-LEARNING_RATE = 0.0001
-EPOCHS = 40
-PATIENCE = 10
-NUM_RUNS = 5
 
-# Hiperparámetros de Modelos (ejemplo)
-Nf_CNN = 32
-N1_CNN = 128
-Nf_LOC = 64
-N1_LOC = 256
+from complejos_k.config import (
+    DEVICE,
+    RUTA_DATOS,
+    BATCH_SIZE,
+    LEARNING_RATE,
+    EPOCHS,
+    PATIENCE,
+    NUM_RUNS,
+    Nf_CNN,
+    N1_CNN,
+    N2_CNN,
+    Nf_LOC,
+    N1_LOC,
+    N2_LOC,
+)
+
+__all__ = [
+    "DEVICE",
+    "RUTA_DATOS",
+    "BATCH_SIZE",
+    "LEARNING_RATE",
+    "EPOCHS",
+    "PATIENCE",
+    "NUM_RUNS",
+    "Nf_CNN",
+    "N1_CNN",
+    "N2_CNN",
+    "Nf_LOC",
+    "N1_LOC",
+    "N2_LOC",
+]
